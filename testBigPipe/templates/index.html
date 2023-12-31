@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>BigPipe Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        #images {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+            padding: 0 10px;
+        }
+
+        .image {
+            margin: 10px;
+            text-align: center;
+            width: 200px; /* Set a fixed width */
+            height: 200px; /* Set a fixed height */
+            overflow: hidden;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        @media (min-width: 768px) {
+            /* Adjust the layout for larger screens */
+            #images {
+                justify-content: space-around;
+            }
+        }
+        form { margin-top: 20px; }
+        input[type="file"], input[type="submit"] { margin: 5px; padding: 8px; border-radius: 5px; border: none; background-color: #3498db; color: #fff; cursor: pointer; }
+        input[type="submit"] { background-color: #2ecc71; }
+        .delete-btn { background-color: #e74c3c; color: #fff; border: none; padding: 5px 10px; margin-top: 5px; border-radius: 3px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Images with BigPipe</h1>
+
+    <form id="uploadForm" enctype="multipart/form-data" method="post">
+        <input type="file" name="file" id="fileInput">
+        <input type="submit" value="Upload Image" name="submit">
+    </form>
+
+    <div id="images"></div>
+
+    <script>
+        function loadPagelets() {
+            fetch('/pagelets')
+                .then(response => response.json())
+                .then(pagelets => {
+                    const imagesDiv = document.getElementById('images');
+                    imagesDiv.innerHTML = '';
+
+                    let index = 0;
+                    const displayNextImage = () => {
+                        if (index < pagelets.length) {
+                            const imageDiv = document.createElement('div');
+                            const uniqueId = `image_${index}`;
+                            imageDiv.id = uniqueId;
+
+                            const img = document.createElement('img');
+                            img.src = `data:image/jpeg;base64,${pagelets[index].file}`;
+                            img.alt = pagelets[index].description;
+
+                            const p = document.createElement('p');
+                            p.textContent = pagelets[index].description;
+
+                            const deleteBtn = document.createElement('button');
+                            deleteBtn.classList.add('delete-btn');
+                            deleteBtn.textContent = 'Delete';
+                            deleteBtn.onclick = function() {
+                                deleteImage(pagelets[index].description, uniqueId);
+                            };
+
+                            imageDiv.appendChild(img);
+                            imageDiv.appendChild(p);
+                            imageDiv.appendChild(deleteBtn);
+                            imagesDiv.appendChild(imageDiv);
+
+                            index++;
+                            setTimeout(displayNextImage, 1000);
+                        }
+                    };
+
+                    displayNextImage();
+                });
+        }
+
+        function deleteImage(imageName, imageDivId) {
+            fetch('/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ filename: imageName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.message);
+                const imageDivToDelete = document.getElementById(imageDivId);
+                if (imageDivToDelete) {
+                    imageDivToDelete.remove();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        window.onload = loadPagelets;
+
+        document.getElementById('uploadForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.message);
+                loadPagelets();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
+</body>
+</html>
